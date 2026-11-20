@@ -8,10 +8,18 @@ MMC is a macOS menu bar app that uses your Apple Silicon Mac to run Linux arm64 
 
 MMC is available as source. To run jobs you need an Apple Silicon Mac with macOS 26 or later, Apple's `container` CLI, a GitHub App installed on the repositories you want to serve, and a registry for your runner images. To build from source, you also need Xcode with Swift 6, Go 1.27.4, and Task.
 
-1. Run `task dev:app` to build the app and helper at `macos/.build/dev/MMC Dev.app`. Build the image CLI and Linux arm64 isolation probe with `task build:cli` and `task build:probe`. Run `task check` for local verification with `golangci-lint` installed.
+From a Terminal window:
+
+```sh
+git clone https://github.com/alexcatdad/my-mac-ci.git
+cd my-mac-ci
+task dev:app
+```
+
+1. The development bundle is at `macos/.build/dev/MMC Dev.app`. Build the image CLI and Linux arm64 isolation probe with `task build:cli` and `task build:probe`. Run `task check` for local verification with `golangci-lint` installed.
 2. Start Apple `container` with `container system start`. Configure `~/.config/mmc/config.json` with global CPU and memory limits, the repositories and labels to serve, and the isolation probe. Set up the GitHub App credentials in Application Support and the login Keychain. See [configuration](docs/SPEC.md#configuration) and [credential storage](docs/SPEC.md#secrets).
 3. Follow the [repository onboarding skill](skills/mmc-image/SKILL.md) to build and push a runner image, pin its digest in MMC, and point a workflow job at the configured label.
-4. Set up the job network and firewall as described in the [network spec](docs/SPEC.md#network). For the signed app's firewall setup, see [Run a signed bundle](#run-a-signed-bundle). Confirm that the isolation self-check passes in the MMC panel before running jobs.
+4. Set up the job network and firewall as described in the [network spec](docs/SPEC.md#network). For the signed app's firewall setup, see [Run a signed bundle](#run-a-signed-bundle). Open the development app with `open "macos/.build/dev/MMC Dev.app"` and confirm that the isolation self-check passes in its menu bar panel.
 
 ## Architecture and limits
 
