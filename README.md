@@ -1,8 +1,10 @@
 # MMC (My Mac CI)
 
+[![CI on main](https://github.com/alexcatdad/my-mac-ci/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/alexcatdad/my-mac-ci/actions/workflows/ci.yml?query=branch%3Amain+event%3Apush)
+
 MMC is a macOS menu bar app that uses your Apple Silicon Mac to run Linux arm64 GitHub Actions jobs. It starts a fresh Apple container VM when a job is queued and removes it after the job finishes.
 
-[Project page](https://alexcatdad.github.io/my-mac-ci/) · [CI](https://github.com/alexcatdad/my-mac-ci/actions/workflows/ci.yml) · [Spec](docs/SPEC.md) · [MIT license](LICENSE)
+[Project page](https://alexcatdad.github.io/my-mac-ci/) · [Testing and coverage](#testing-and-coverage) · [Spec](docs/SPEC.md) · [MIT license](LICENSE)
 
 ## Getting started
 
@@ -20,6 +22,12 @@ task dev:app
 2. Start Apple `container` with `container system start`. Configure `~/.config/mmc/config.json` with global CPU and memory limits, the repositories and labels to serve, and the isolation probe. Set up the GitHub App credentials in Application Support and the login Keychain. See [configuration](docs/SPEC.md#configuration) and [credential storage](docs/SPEC.md#secrets).
 3. Follow the [repository onboarding skill](skills/mmc-image/SKILL.md) to build and push a runner image, pin its digest in MMC, and point a workflow job at the configured label.
 4. Set up the job network and firewall as described in the [network spec](docs/SPEC.md#network). For the signed app's firewall setup, see [Run a signed bundle](#run-a-signed-bundle). Open the development app with `open "macos/.build/dev/MMC Dev.app"` and confirm that the isolation self-check passes in its menu bar panel.
+
+After setup, open the menu bar panel. Look for **Dispatch service running** and **Network isolation Passed**. An **Idle** label is ready for queued work.
+
+<img src="docs/images/mmc-panel.png" width="340" alt="MMC panel showing the dispatch service running, an idle example runner label, and a passed network isolation check.">
+
+*Example panel with synthetic job data.*
 
 ## Architecture and limits
 
@@ -47,6 +55,14 @@ Run `/Applications/MMC.app/Contents/Helpers/mmc sizing review` to see how much C
 To identify a particular workload, pass its workflow path and GitHub job display name, for example `sizing review -workflow .github/workflows/ci.yml -job fast`.
 
 Review a workload after 35 successful runs with sufficient sample coverage. Use sustained CPU demand, sampled memory peaks, failures, and elapsed time to choose a change. Apply an approved allocation in the label’s configuration and reload MMC. New jobs use the updated allocation and start a fresh baseline.
+
+## Testing and coverage
+
+Run `task check COVERAGE=1` to run the local gate and generate coverage profiles. For the published numbers, open the latest successful [CI run on main](https://github.com/alexcatdad/my-mac-ci/actions/workflows/ci.yml?query=branch%3Amain+event%3Apush+is%3Asuccess). Its summary reports Go **statement coverage** and Swift app **line coverage** separately.
+
+## Help and contributions
+
+For setup questions or bugs, [open an issue](https://github.com/alexcatdad/my-mac-ci/issues). To propose a change, see the [contributing guide](CONTRIBUTING.md). For suspected vulnerabilities, follow the [private reporting instructions](SECURITY.md#reporting-a-vulnerability).
 
 ## Maintainer releases
 
