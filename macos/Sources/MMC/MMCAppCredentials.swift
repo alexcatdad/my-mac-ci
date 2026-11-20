@@ -1,4 +1,5 @@
 import Foundation
+import MMCLoginKeychain
 import Security
 
 enum MMCAppCredentialError: Error, LocalizedError, Equatable {
@@ -67,23 +68,20 @@ struct MMCAppCredentials: Codable, Sendable {
 
     // The owner's item is in the file-based login Keychain. Its interaction
     // setting is process-wide; restore it before another MMC reader enters.
-    #if compiler(>=6.4)
-        @diagnose(DeprecatedDeclaration, as: ignored)
-    #endif
     private static func readKey(at url: URL, allowInteraction: Bool) throws -> Data {
         try interactionLock.withLock {
             var previous = DarwinBoolean(false)
-            guard SecKeychainGetUserInteractionAllowed(&previous) == errSecSuccess,
-                SecKeychainSetUserInteractionAllowed(allowInteraction) == errSecSuccess
+            guard MMCKeychainGetUserInteractionAllowed(&previous) == errSecSuccess,
+                MMCKeychainSetUserInteractionAllowed(allowInteraction) == errSecSuccess
             else { throw MMCAppCredentialError.keyAccessDenied }
-            defer { _ = SecKeychainSetUserInteractionAllowed(previous.boolValue) }
+            defer { _ = MMCKeychainSetUserInteractionAllowed(previous.boolValue) }
 
             var keychain: SecKeychain?
-            guard SecKeychainOpen(url.path, &keychain) == errSecSuccess, let keychain else {
+            guard MMCKeychainOpen(url.path, &keychain) == errSecSuccess, let keychain else {
                 throw MMCAppCredentialError.keyUnavailable
             }
             var flags: SecKeychainStatus = 0
-            guard SecKeychainGetStatus(keychain, &flags) == errSecSuccess else {
+            guard MMCKeychainGetStatus(keychain, &flags) == errSecSuccess else {
                 throw MMCAppCredentialError.keyUnavailable
             }
             guard allowInteraction || flags & UInt32(kSecUnlockStateStatus) != 0 else { throw MMCAppCredentialError.keyAccessDenied }

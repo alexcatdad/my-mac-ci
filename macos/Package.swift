@@ -12,7 +12,10 @@ let package = Package(
             revision: "cf3666e8e1a822930c7f4c3f64309de5951b1c54")
     ],
     targets: [
-        .executableTarget(name: "MMC", dependencies: [.product(name: "MenubarKit", package: "menubar-kit")]),
+        .target(name: "MMCLoginKeychain", linkerSettings: [.linkedFramework("Security")]),
+        .executableTarget(
+            name: "MMC",
+            dependencies: ["MMCLoginKeychain", .product(name: "MenubarKit", package: "menubar-kit")]),
         .testTarget(name: "MMCTests", dependencies: ["MMC"]),
     ]
 )
