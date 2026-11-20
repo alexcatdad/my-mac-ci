@@ -1,14 +1,36 @@
-# MMC
+# MMC (My Mac CI)
 
-MMC runs Linux arm64 GitHub Actions jobs on an Apple Silicon Mac. The menu-bar app listens for queued jobs in the user session and starts one temporary Apple container VM per job. Its network check must pass before it starts runners.
+MMC is a macOS menu bar app that uses your Apple Silicon Mac to run Linux arm64 GitHub Actions jobs. It starts a fresh Apple container VM when a job is queued and removes it after the job finishes.
 
-## Build from source
+[Project page](https://alexcatdad.github.io/my-mac-ci/) · [CI](https://github.com/alexcatdad/my-mac-ci/actions/workflows/ci.yml) · [Spec](docs/SPEC.md) · [MIT license](LICENSE)
 
-Use Apple Silicon, macOS 26 or later, Xcode with Swift 6, Go 1.27.4, and Task. Run `task dev:app` to build the development app at `macos/.build/dev/MMC Dev.app`. Run `task check` for local verification with `golangci-lint` installed. The development bundle contains the app and helper. Build the image CLI and isolation probe separately with `task build:cli` and `task build:probe`.
+## Getting started
+
+MMC is available as source. To run jobs you need an Apple Silicon Mac with macOS 26 or later, Apple's `container` CLI, a GitHub App installed on the repositories you want to serve, and a registry for your runner images. To build from source, you also need Xcode with Swift 6, Go 1.27.4, and Task.
+
+From a Terminal window:
+
+```sh
+git clone https://github.com/alexcatdad/my-mac-ci.git
+cd my-mac-ci
+task dev:app
+```
+
+1. The development bundle is at `macos/.build/dev/MMC Dev.app`. Build the image CLI and Linux arm64 isolation probe with `task build:cli` and `task build:probe`. Run `task check` for local verification with `golangci-lint` installed.
+2. Start Apple `container` with `container system start`. Configure `~/.config/mmc/config.json` with global CPU and memory limits, the repositories and labels to serve, and the isolation probe. Set up the GitHub App credentials in Application Support and the login Keychain. See [configuration](docs/SPEC.md#configuration) and [credential storage](docs/SPEC.md#secrets).
+3. Follow the [repository onboarding skill](skills/mmc-image/SKILL.md) to build and push a runner image, pin its digest in MMC, and point a workflow job at the configured label.
+4. Set up the job network and firewall as described in the [network spec](docs/SPEC.md#network). For the signed app's firewall setup, see [Run a signed bundle](#run-a-signed-bundle). Open the development app with `open "macos/.build/dev/MMC Dev.app"` and confirm that the isolation self-check passes in its menu bar panel.
+
+## Architecture and limits
+
+The Swift menu bar app supervises a Go helper in your login session. The helper listens for jobs through a GitHub Actions scale set per repository and label. It starts runners as demand and the configured CPU and memory limits allow. See [architecture](docs/SPEC.md#architecture) and [scaling](docs/SPEC.md#scaling-actionsscaleset).
+
+- Jobs run on Linux arm64. MMC requires an active macOS login session, including after a reboot.
+- The network self-check must pass before new runners can start. Concurrent jobs on MMC's shared network can communicate with each other. See the [network isolation details](docs/SPEC.md#network).
 
 ## Run a signed bundle
 
-MMC is currently distributed as source. If you have a signed and notarized bundle, these steps describe how to run it.
+If you build a signed and notarized bundle, use these steps to run it.
 
 1. Place the notarized `MMC.app` in `/Applications`. Quit any development copy before opening it. If jobs are active, choose **Finish jobs and quit** to let them finish.
 2. Open MMC. It reads the repo and label definitions from `~/.config/mmc/config.json`. The release includes the Linux arm64 isolation probe at `/Applications/MMC.app/Contents/Resources/mmc-probe`, suitable for the config's `isolation.probeBinary`.

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="MMC runs Linux arm64 GitHub Actions jobs on an Apple Silicon Mac, in one temporary VM per job.">
+  <meta name="theme-color" content="#11121e">
+  <title>MMC · GitHub Actions on your Mac</title>
+  <link rel="icon" href="mmc-icon.png" type="image/png">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <header class="shell header">
+    <a class="brand" href="./">
+      <img src="mmc-icon.png" width="36" height="36" alt="">
+      MMC
+    </a>
+    <nav aria-label="Project">
+      <a href="https://github.com/alexcatdad/my-mac-ci/blob/main/docs/SPEC.md">Spec</a>
+      <a href="https://github.com/alexcatdad/my-mac-ci">GitHub <span aria-hidden="true">↗</span></a>
+    </nav>
+  </header>
+
+  <main class="shell">
+    <section class="hero" aria-labelledby="title">
+      <div class="intro">
+        <h1 id="title">GitHub Actions<br> on your Mac<span>.</span></h1>
+        <p>MMC is a macOS menu bar app that runs Linux arm64 jobs on Apple Silicon.</p>
+        <a class="button" href="https://github.com/alexcatdad/my-mac-ci#getting-started">Build from source <span aria-hidden="true">↗</span></a>
+      </div>
+      <div class="art" aria-hidden="true">
+        <img src="mmc-icon.png" width="384" height="384" alt="" fetchpriority="high">
+      </div>
+    </section>
+
+    <section class="details" aria-labelledby="how">
+      <h2 id="how">How MMC runs jobs</h2>
+      <dl>
+        <div>
+          <dt>One VM per job</dt>
+          <dd>MMC starts an Apple container VM when a job needs one and removes it after the job.</dd>
+        </div>
+        <div>
+          <dt>Runs after login</dt>
+          <dd>The runner operates in your macOS user session. After a restart, jobs can resume once you log in.</dd>
+        </div>
+        <div>
+          <dt>Shared job network</dt>
+          <dd>MMC checks network isolation before starting runners. Concurrent jobs share a network and can reach one another.</dd>
+        </div>
+      </dl>
+    </section>
+  </main>
+
+  <footer class="shell footer">
+    <span>My Mac CI</span>
+    <a href="https://github.com/alexcatdad/my-mac-ci#readme">Project README <span aria-hidden="true">↗</span></a>
+  </footer>
+</body>
+</html>
