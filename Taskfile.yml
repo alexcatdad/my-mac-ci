@@ -1,0 +1,87 @@
+version: "3"
+
+vars:
+  RELTOOL:
+    sh: echo "${XDG_CACHE_HOME:-$HOME/.cache}/release-tools/e5dbed8034b899e5a7091ef1d3edf8e8da7989ab/reltool"
+
+tasks:
+  check:
+    desc: Check Go formatting, lint, vet, race tests and build, then test Swift and build the app on macOS
+    cmds:
+      - test -z "$(gofmt -l cmd internal)"
+      - golangci-lint run ./...
+      - go vet ./...
+      - '{{if .COVERAGE}}mkdir -p bin && go test -race -coverpkg=./... -coverprofile=bin/go-coverage.out ./...{{else}}go test -race ./...{{end}}'
+      - go build ./...
+      - cmd: |
+          set -eu
+          mkdir -p macos/.build
+          go test -c -o macos/.build/mmc-helper-fixture ./cmd/mmc-helper
+          MMC_TEST_HELPER="$PWD/macos/.build/mmc-helper-fixture" swift test --package-path macos -Xswiftc -warnings-as-errors{{if .COVERAGE}} --enable-code-coverage{{end}}
+        platforms: [darwin]
+      - task: dev:app
+        vars: { APP_OUTPUT: macos/.build/check/MMC Dev.app }
+
+  build:cli:
+    desc: Build the MMC image CLI
+    cmds:
+      - go build -trimpath -o bin/mmc ./cmd/mmc
+
+  build:probe:
+    desc: Build the isolation diagnostic for Linux arm64 guests
+    env:
+      GOOS: linux
+      GOARCH: arm64
+      CGO_ENABLED: "0"
+    cmds:
+      - go build -trimpath -o bin/mmc-probe ./cmd/mmc-probe
+
+  build:jit-files:
+    desc: Build the Linux arm64 JIT decoder for the runner image context
+    env:
+      GOOS: linux
+      GOARCH: arm64
+      CGO_ENABLED: "0"
+    cmds:
+      - go build -trimpath -o trial/image/mmc-jit-files ./cmd/mmc-jit-files
+
+  dev:app:
+    platforms: [darwin]
+    desc: Build the local macOS menu-bar app and its helper
+    cmds:
+      - swift build --package-path macos --product MMC -Xswiftc -warnings-as-errors
+      - |
+        set -eu
+        app='{{.APP_OUTPUT | default "macos/.build/dev/MMC Dev.app"}}'
+        mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers" "$app/Contents/Resources"
+        cp macos/Resources/AppIcon.icns macos/Resources/MMCTrayIcon*.png "$app/Contents/Resources/"
+        cp macos/Resources/Info.plist "$app/Contents/Info.plist"
+        cp "$(swift build --package-path macos --show-bin-path)/MMC" "$app/Contents/MacOS/MMC"
+        go build -trimpath -o "$app/Contents/Helpers/mmc-helper" ./cmd/mmc-helper
+        codesign --force --sign - "$app/Contents/Helpers/mmc-helper"
+        codesign --force --sign - "$app"
+        codesign --verify --strict --deep "$app"
+
+  build:darwin-arm64:
+    cmds:
+      - sh macos/Scripts/release-app.sh build
+
+  validate:darwin-arm64:
+    cmds:
+      - sh macos/Scripts/release-app.sh validate
+
+  release:check:
+    cmds:
+      - '"{{.RELTOOL}}" release check --task-exe "{{.TASK_EXE}}" {{.CLI_ARGS}}'
+
+  release:prepare:
+    cmds:
+      - '"{{.RELTOOL}}" release prepare --task-exe "{{.TASK_EXE}}" {{.CLI_ARGS}}'
+
+  release:
+    cmds:
+      - '"{{.RELTOOL}}" release run --task-exe "{{.TASK_EXE}}" {{.CLI_ARGS}}'
+
+  release:resume:
+    cmds:
+      - '"{{.RELTOOL}}" release resume --task-exe "{{.TASK_EXE}}" {{.CLI_ARGS}}'

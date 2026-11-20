@@ -1,0 +1,174 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '23 6 * * 1'
+
+permissions: {}
+
+env:
+  GOTOOLCHAIN: local
+
+jobs:
+  macos:
+    name: macOS full gate
+    if: ${{ toJSON(github.event.repository.private) == 'false' && github.event_name != 'schedule' }}
+    runs-on: macos-26
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Set up Task and golangci-lint
+        env:
+          GOBIN: ${{ runner.temp }}/bin
+        run: |
+          test "$(uname -m)" = arm64
+          xcodebuild -version
+          go install github.com/go-task/task/v3/cmd/task@v3.54.0
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
+          echo "$GOBIN" >> "$GITHUB_PATH"
+      - name: Run task check
+        run: task check COVERAGE=1
+      - name: Report project coverage
+        run: |
+          go_coverage=$(go tool cover -func=bin/go-coverage.out | awk '$1 == "total:" {print $3}')
+          test -n "$go_coverage"
+          swift_profile=$(swift test --package-path macos --show-codecov-path)
+          swift_coverage=$(jq -er --arg prefix "$PWD/macos/Sources/MMC/" '
+            [.data[].files[] | select(.filename | startswith($prefix)) | .summary.lines]
+            | select(length > 0)
+            | (map(.covered) | add) / (map(.count) | add) * 100
+          ' "$swift_profile")
+          printf 'Go statement coverage: %s\n\nSwift app line coverage: %.2f%%\n' \
+            "$go_coverage" "$swift_coverage" >> "$GITHUB_STEP_SUMMARY"
+
+  leaks:
+    name: Gitleaks
+    if: ${{ toJSON(github.event.repository.private) == 'false' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Set up Gitleaks
+        env:
+          GOBIN: ${{ runner.temp }}/bin
+        run: |
+          go install github.com/zricethezav/gitleaks/v8@v8.30.1
+          echo "$GOBIN" >> "$GITHUB_PATH"
+      - name: Scan commit history
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          GITLEAKS_CONFIG_TOML: |
+            [extend]
+            useDefault = true
+        run: |
+          gitleaks version
+          test "$(git rev-parse --is-shallow-repository)" = false
+          history=--all
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            test "$(git rev-parse HEAD^1)" = "$PR_BASE"
+            test "$(git rev-parse HEAD^2)" = "$PR_HEAD"
+            history="$PR_BASE..$GITHUB_SHA"
+          fi
+          log_options=(--full-history --diff-merges=first-parent "$history" --)
+          # Gitleaks can return success when its Git subprocess rejects a revision range.
+          if ! git log -p -U0 "${log_options[@]}" >/dev/null 2>&1; then
+            echo "::error::Git could not read the requested history."
+            exit 1
+          fi
+          # Scan the Git database so unreviewed changes to ignore files cannot suppress findings.
+          status=0
+          gitleaks git .git --log-opts="${log_options[*]}" \
+            --gitleaks-ignore-path "$RUNNER_TEMP" --ignore-gitleaks-allow \
+            --redact=100 --no-banner --exit-code=42 >/dev/null 2>&1 || status=$?
+          case "$status" in
+            0) echo "Gitleaks passed." ;;
+            42) echo "::error::Gitleaks found a potential secret. Triage the finding privately." ;;
+            *) echo "::error::Gitleaks could not complete the scan (exit $status)." ;;
+          esac
+          exit "$status"
+
+  vulnerabilities:
+    name: Go vulnerabilities
+    if: ${{ toJSON(github.event.repository.private) == 'false' }}
+    runs-on: macos-26
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+      GOARCH: arm64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Set up govulncheck
+        id: setup
+        env:
+          GOBIN: ${{ runner.temp }}/bin
+        run: |
+          test "$(uname -m)" = arm64
+          go install golang.org/x/vuln/cmd/govulncheck@v1.10.0
+          echo "$GOBIN" >> "$GITHUB_PATH"
+      - name: Scan Darwin arm64 (root)
+        env:
+          GOOS: darwin
+          CGO_ENABLED: '1'
+        run: govulncheck -show version ./...
+      - name: Scan Linux arm64 guest commands
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        env:
+          GOOS: linux
+          CGO_ENABLED: '0'
+        run: govulncheck -show version ./cmd/mmc-probe ./cmd/mmc-jit-files
+      - name: Scan Darwin arm64 (trial scaler)
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        working-directory: trial/scaler
+        env:
+          GOOS: darwin
+          CGO_ENABLED: '1'
+        run: govulncheck -show version ./...
+
+  check:
+    name: MMC check
+    if: ${{ always() && toJSON(github.event.repository.private) == 'false' && github.event_name != 'schedule' }}
+    needs: [macos, leaks, vulnerabilities]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require all checks to succeed
+        env:
+          MACOS_RESULT: ${{ needs.macos.result }}
+          LEAKS_RESULT: ${{ needs.leaks.result }}
+          VULNERABILITIES_RESULT: ${{ needs.vulnerabilities.result }}
+        run: |
+          printf 'macOS: %s\nGitleaks: %s\nGo vulnerabilities: %s\n' \
+            "$MACOS_RESULT" "$LEAKS_RESULT" "$VULNERABILITIES_RESULT"
+          test "$MACOS_RESULT/$LEAKS_RESULT/$VULNERABILITIES_RESULT" = success/success/success

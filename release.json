@@ -1,0 +1,33 @@
+{
+  "schema": "release-tools/app/v1",
+  "app": "my-mac-ci",
+  "repo": "alexcatdad/my-mac-ci",
+  "checks": [
+    "check"
+  ],
+  "targets": [
+    {
+      "id": "darwin-arm64",
+      "os": "darwin",
+      "arch": "arm64",
+      "min_os": "13.0",
+      "build_task": "build:darwin-arm64",
+      "validate_task": "validate:darwin-arm64",
+      "artifacts": [
+        {
+          "name": "my-mac-ci-{version}-darwin-arm64.zip",
+          "kind": "zip"
+        }
+      ]
+    }
+  ],
+  "signing": {
+    "macos": {
+      "targets": [
+        "darwin-arm64"
+      ],
+      "notarize": true,
+      "staple": true
+    }
+  }
+}

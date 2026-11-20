@@ -1,0 +1,6 @@
+trial/scaler/mmc-trial
+*.log
+/bin/
+/trial/image/mmc-jit-files
+/macos/.build/
+/macos/.swiftpm/

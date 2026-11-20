@@ -1,0 +1,14 @@
+{
+  "originHash" : "68fd2daee9062a10bea23a8b272aed23b2c0ed17c679f9d7806e9aa700867d1b",
+  "pins" : [
+    {
+      "identity" : "menubar-kit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/alexcatdad/menubar-kit.git",
+      "state" : {
+        "revision" : "cf3666e8e1a822930c7f4c3f64309de5951b1c54"
+      }
+    }
+  ],
+  "version" : 3
+}

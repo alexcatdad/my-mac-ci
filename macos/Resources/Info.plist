@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key><string>en</string>
+	<key>CFBundleDisplayName</key><string>MMC Dev</string>
+	<key>CFBundleExecutable</key><string>MMC</string>
+	<key>CFBundleIconFile</key><string>AppIcon</string>
+	<key>CFBundleIdentifier</key><string>com.alexcatdad.my-mac-ci.dev</string>
+	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+	<key>CFBundleName</key><string>MMC Dev</string>
+	<key>CFBundlePackageType</key><string>APPL</string>
+	<key>CFBundleShortVersionString</key><string>0.0.0</string>
+	<key>CFBundleVersion</key><string>0</string>
+	<key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
+	<key>LSMinimumSystemVersion</key><string>13.0</string>
+	<key>LSUIElement</key><true/>
+	<key>NSHighResolutionCapable</key><true/>
+	<key>NSLocalNetworkUsageDescription</key><string>MMC checks that job containers cannot reach this Mac or the private network before starting runners.</string>
+	<key>NSRemovableVolumesUsageDescription</key><string>MMC reads its isolation test executable from the configured location, which may be on an external drive.</string>
+	<key>NSPrincipalClass</key><string>NSApplication</string>
+</dict>
+</plist>
